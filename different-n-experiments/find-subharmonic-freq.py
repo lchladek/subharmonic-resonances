@@ -3,7 +3,7 @@ import numpy as np
 from qutip import basis
 from scipy.optimize import minimize_scalar
 from matplotlib import pyplot as plt
-from qutip import sigmax, sigmay, sigmaz, sigmam, mesolve, essolve, mcsolve
+from qutip import *
 
 def qubit_integrate_labframe(omega_0, omega_d, rabi, theta,psi0, solver, phi = 0, g1 = 0, g2 = 0, tlist=np.linspace(0,5000,10000)):
 
@@ -46,12 +46,13 @@ if __name__ == "__main__":
     # Parameters
     N = 4 # Subharmonic number
     theta = 0.25 * np.pi # Driving angle, 
-    rabi = 0.15 * np.pi / np.sin(theta) # Drive amplitude
+    rabi = 0.27 * np.pi / np.sin(theta) # Drive amplitude
 
     omega_0 = 1.0 * np.pi
     psi0 = basis(2,0)
-    t_max = 150000 
-    tlist = np.linspace(0, t_max, 5000)
+    t_max = 300 
+    samples = 10000
+    tlist = np.linspace(0, t_max, samples)
 
     # Two steps to find the subharmonic frequency estimation: 1. "coarse" scanning, 2. finer scanning around the lower estimate.
     omega_est = 0.272 * np.pi  # Initial estimate for N
@@ -76,7 +77,7 @@ if __name__ == "__main__":
     min_omega_d = fine_range[np.argmin(fine_depths)]
     print(f"Optimal omega_d: {min_omega_d/np.pi:.64f}π")
 
-    tlist_final = np.linspace(0, t_max, 10000)
+    tlist_final = np.linspace(0, t_max, samples)
     _, _, sz_final = qubit_integrate_labframe(omega_0, min_omega_d, rabi, theta, psi0, "me", 0, 0, 0, tlist_final)
 
     fig, ax = plt.subplots(figsize=(12,6))
