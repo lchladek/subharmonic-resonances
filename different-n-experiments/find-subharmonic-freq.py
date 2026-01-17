@@ -42,20 +42,40 @@ def qubit_integrate_labframe(omega_0, omega_d, rabi, theta,psi0, solver, phi = 0
         
     return output.expect[0], output.expect[1], output.expect[2]
 
-if __name__ == "__main__":
-    # Parameters
-    N = 4 # Subharmonic number
-    theta = 0.25 * np.pi # Driving angle, 
-    rabi = 0.27 * np.pi / np.sin(theta) # Drive amplitude
+def find_optimal_omega(N, omega_0, rabi, theta, psi0, tlist):
+    """
+    Uses an optimizer to find the subharmonic frequency.
+    """
+    
+    def objective_function(wd):
+        # we want to minimize sz
+        _, _, sz = qubit_integrate_labframe(omega_0, wd, rabi, theta, psi0, "me", 0, 0, 0, tlist)
+        current_min = np.min(np.real(sz))
+        return current_min
 
-    omega_0 = 1.0 * np.pi
-    psi0 = basis(2,0)
-    t_max = 300 
-    samples = 10000
-    tlist = np.linspace(0, t_max, samples)
+    # Search bounds
+    initial_guess = 0.2741 * np.pi
+    lower_bound = initial_guess - 0.0001 
+    upper_bound = initial_guess + 0.0001
 
-    # Two steps to find the subharmonic frequency estimation: 1. "coarse" scanning, 2. finer scanning around the lower estimate.
-    omega_est = 0.272 * np.pi  # Initial estimate for N
+    print(f"Starting optimization for N={N}...")
+    result = minimize_scalar(
+        objective_function, 
+        bounds=(lower_bound, upper_bound), 
+        method='bounded', 
+        options={'xatol': 1e-8} # Tolerance 
+    )
+
+    if result.success:
+        return result.x
+    else:
+        raise ValueError("Optimization failed to converge")
+
+def linear_approx(N, theta, rabi, omega_0, psi0, tlist):
+    '''
+    Two steps to find the subharmonic frequency estimation: 1. "coarse" scanning, 2. finer scanning around the lower estimate.
+    '''
+    omega_est = (1/N) * np.pi  # Initial estimate for N
     coarse_range = np.linspace(omega_est - 0.002, omega_est + 0.002 * np.pi, 20)
     
     print(f"Coarse scanning for N={N}")
@@ -75,6 +95,25 @@ if __name__ == "__main__":
         fine_depths.append(np.min(np.real(sz)))
 
     min_omega_d = fine_range[np.argmin(fine_depths)]
+    
+    return min_omega_d
+
+if __name__ == "__main__":
+    # Parameters
+    N = 4 # Subharmonic number
+    theta = 0.25 * np.pi # Driving angle, 
+    rabi = 0.27 * np.pi / np.sin(theta) # Drive amplitude
+
+    omega_0 = 1.0 * np.pi
+    psi0 = basis(2,0)
+    t_max = 300 
+    samples = 1000000
+    tlist = np.linspace(0, t_max, samples)
+
+    # Either use the course/fine scanning method or the optimizer.
+    # min_omega_d = linear_approx(N, theta, rabi, omega_0, psi0, tlist)
+
+    min_omega_d = find_optimal_omega(N, omega_0, rabi, theta, psi0, tlist)
     print(f"Optimal omega_d: {min_omega_d/np.pi:.64f}π")
 
     tlist_final = np.linspace(0, t_max, samples)
